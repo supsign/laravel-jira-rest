@@ -20,13 +20,36 @@ class JiraRestApi
         $request = array(),
         $response = null,
         $responseRaw = array(),
+        $step = 100,
         $url = null;
 
     public function test()
     {
-    	$this->endpoint = 'issue/P113SUPSIG-643';
+    	$this->endpoint = 'search';
+    	// $this->endpoint = 'users/search';
+    	// $this->endpoint = 'user';
 
-    	$this->sendRequest();
+    	$this->setRequestData([
+			'maxResults' => 1000,
+			// 'startAt' => 100,
+			'jql' => urlencode('assignee in (5cd3af9d5c99a60dcbae1e1e) order by created DESC')
+    	]);
+
+    	// $this->setRequestData([
+    	// 	'accountId' => '5db5856352817b0c343d6d5c'
+    	// ]);
+
+
+
+    	$this->sendRequests();
+
+    	// var_dump($this->response);
+
+    	// var_dump(count($this->response->issues));
+
+    	// foreach ($this->response->issues AS $issue) {
+    	// 	var_dump($issue);
+    	// }
 
     	return $this;
     }
@@ -74,7 +97,11 @@ class JiraRestApi
 			curl_setopt($this->ch, CURLOPT_USERPWD, $this->login.':'.$this->password);
 		}
 
-		curl_setopt($this->ch, CURLOPT_URL, $this->url.$this->endpoint.$this->getParamterString());
+		var_dump(
+			$this->url.$this->endpoint.$this->getRequestString()
+		);
+
+		curl_setopt($this->ch, CURLOPT_URL, $this->url.$this->endpoint.$this->getRequestString());
 		curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($this->ch, CURLOPT_CUSTOMREQUEST, 'GET');
 
@@ -85,22 +112,17 @@ class JiraRestApi
 		return $this->endpoint;
 	}
 
-	protected function getParamterString()
+	protected function getRequestString()
 	{
-		if (!$this->parameters) {
+		if (!$this->request) {
 			return '';
 		}
 
-		foreach ($this->parameters AS $key => $value) {
+		foreach ($this->request AS $key => $value) {
 			$pairs[] = implode('=', [$key, $value]);
 		}
 
 		return '?'.implode('&', $pairs);
-	}
-
-	protected static function getProperties($element) 
-	{
-		return $element->content->children('m', true)->properties->children('d', true);
 	}
 
     public function getResponse() 
@@ -119,12 +141,28 @@ class JiraRestApi
 	protected function sendRequest()
 	{
 		$this->createRequest();
-		$this->responseRaw = curl_exec($this->ch);
-		$this->response = json_decode($this->responseRaw);
+		$this->setResponse(json_decode(curl_exec($this->ch)));
 		curl_close($this->ch);
 
 		return $this;
 	}
+
+    protected function sendRequests()
+    {
+    	do {
+    		$this->sendRequest();
+
+			if (!isset($this->parameters['startAt'])) {
+				$this->request['startAt'] = $this->step;
+			} else {
+				$this->request['startAt'] += $this->step;
+			}
+    	} while (!$this->requestFinished);
+
+    	$this->response = $this->responseRaw;
+
+    	return $this;
+    }
 
 	public function setEndpoint($endpoint) {
 		$this->endpoint = $endpoint;
@@ -136,9 +174,25 @@ class JiraRestApi
     {
     	$this
     		->clearRequestData()
-    		->request = array_merge($this->request, $data);
+    		->request = $data;
 
     	return $this;
+    }
+
+    protected function setResponse($response) 
+    {
+    	if (!isset($this->request['startAt']))
+    		$this->requestFinished = false;
+    	else
+			$this->requestFinished = $response->total < $this->request['startAt'];
+
+		var_dump(
+			$this->request
+		);
+
+    	// $this->responseRaw = array_merge($this->responseRaw, $response->{$this->endpoint == 'search' ? 'issues' : $this->endpoint});
+
+		return $this;
     }
 
     protected static function toStdClass($collection) 
