@@ -6,7 +6,7 @@ use Config;
 use Exception;
 use SimpleXMLElement;
 
-class MyFactoryRestApi
+class JiraRestApi
 {
     protected
     	$cache = array(),
