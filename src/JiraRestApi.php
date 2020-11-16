@@ -1,6 +1,6 @@
 <?php
 
-namespace Supsign\LaravelMfRest;
+namespace Supsign\LaravelJiraRest;
 
 use Config;
 use Exception;
