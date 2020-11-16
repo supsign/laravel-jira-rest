@@ -19,7 +19,7 @@
                 "Supsign\\LaravelJiraRest\\LaravelJiraRestServiceProvider"
             ],
             "aliases": {
-                "JiraRestApi": "Supsign\\LaravelJiraRest\\JiraRest"
+                "JiraRestApi": "Supsign\\LaravelJiraRest\\JiraRestApi"
             }
         }
     }
