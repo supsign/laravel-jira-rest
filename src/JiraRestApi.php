@@ -20,7 +20,6 @@ class JiraRestApi
         $request = array(),
         $response = null,
         $responseRaw = array(),
-        $skipStep = 5000,
         $url = null;
 
 	public function __construct() 
@@ -102,7 +101,7 @@ class JiraRestApi
     	}
 
     	if (!$this->response) {
-    		$this->sendRequests();
+    		$this->sendRequest();
     	}
 
     	return $this->response;
@@ -116,23 +115,6 @@ class JiraRestApi
 
 		return $this;
 	}
-
-    protected function sendRequests()
-    {
-    	do {
-    		$this->sendRequest();
-
-			if (!isset($this->parameters['$skip'])) {
-				$this->parameters['$skip'] = $this->skipStep;
-			} else {
-				$this->parameters['$skip'] += $this->skipStep;
-			}
-    	} while (!$this->requestFinished);
-
-    	$this->response = self::toStdClass($this->responseRaw);
-
-    	return $this;
-    }
 
 	public function setEndpoint($endpoint) {
 		$this->endpoint = $endpoint;
