@@ -22,6 +22,15 @@ class JiraRestApi
         $responseRaw = array(),
         $url = null;
 
+    public function test()
+    {
+    	$this->endpoint = 'issue/P113SUPSIG-643';
+
+    	$this->sendRequest();
+
+    	return $this;
+    }
+
 	public function __construct() 
 	{
 		$this->login = env('JIRA_REST_LOGIN');
@@ -110,7 +119,8 @@ class JiraRestApi
 	protected function sendRequest()
 	{
 		$this->createRequest();
-		$this->setResponse(simplexml_load_string(curl_exec($this->ch)));
+		$this->responseRaw = curl_exec($this->ch);
+		$this->response = json_decode($this->responseRaw);
 		curl_close($this->ch);
 
 		return $this;
@@ -129,34 +139,6 @@ class JiraRestApi
     		->request = array_merge($this->request, $data);
 
     	return $this;
-    }
-
-    protected function setResponse($response) 
-    {
-    	if (isset($response->workspace)) {
-    		if (isset($response->workspace->collection)) {
-    			$this->response = $response->workspace->collection;
-    		} else {
-    			$this->response = $response->workspace;
-    		}
-
-    		return $this;
-    	}
-
-    	if (!isset($response->entry)) {
-    		throw new Exception('not entry element found', 1);
-    	}
-
-    	$data = array();
-
-    	foreach ($response->entry AS $entry) {
-    		$data[] = self::getProperties($entry);
-    	}
-
-    	$this->requestFinished = count($data) % $this->skipStep !== 0;
-    	$this->responseRaw = array_merge($this->responseRaw, $data);
-
-		return $this;
     }
 
     protected static function toStdClass($collection) 
