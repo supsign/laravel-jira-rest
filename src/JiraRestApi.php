@@ -4,7 +4,6 @@ namespace Supsign\LaravelJiraRest;
 
 use Config;
 use Exception;
-use SimpleXMLElement;
 
 class JiraRestApi
 {
