@@ -9,7 +9,6 @@ use SimpleXMLElement;
 class JiraRestApi
 {
     protected
-    	$cache = array(),
     	$ch = null,
         $client = null,
         $endpoint = '',
@@ -30,13 +29,6 @@ class JiraRestApi
 		$this->login = env('JIRA_REST_LOGIN');
 		$this->password = env('JIRA_REST_PASSWORD');
 		$this->url = env('JIRA_REST_URL');
-
-		return $this;
-	}
-
-	protected function clearCache()
-	{
-		$this->cache = array();
 
 		return $this;
 	}
@@ -82,7 +74,6 @@ class JiraRestApi
 	public function getIssue($id)
 	{
 		$this->newCall()->endpoint = 'issue/'.$id;
-		// $this->responseKey = 'fields';
 
 		return $this->getResponse();
 	}
@@ -91,7 +82,6 @@ class JiraRestApi
 	{
 		$this->newCall()->endpoint = 'search';
 		$this->responseKey = 'issues';
-
     	$this->setRequestData([
 			'maxResults' => $this->requestMaxResults,
 			'jql' => urlencode('status in ('.$this->getRequestIssueStatus().') ORDER BY duedate DESC')
@@ -104,11 +94,19 @@ class JiraRestApi
 	{
 		$this->newCall()->endpoint = 'search';
 		$this->responseKey = 'issues';
-
     	$this->setRequestData([
 			'maxResults' => $this->requestMaxResults,
 			'jql' => urlencode('assignee in ('.$id.') AND status in ('.$this->getRequestIssueStatus().') ORDER BY duedate DESC')
     	]);
+
+    	return $this->getResponse();
+	}
+
+	public function getUser($accountId) {
+		$this
+			->newCall()
+			->setRequestData(['accountId' => $accountId])
+			->endpoint = 'user';
 
     	return $this->getResponse();
 	}
@@ -173,7 +171,6 @@ class JiraRestApi
     	} while (!$this->requestFinished);
 
     	$this->response = $this->responseRaw;
-    	unset($this->responseRaw);
 
     	return $this;
     }
@@ -202,15 +199,16 @@ class JiraRestApi
     protected function setResponse($response) 
     {
     	$this->requestFinished = true;
+    	$result = isset($this->responseKey) ? $response->{$this->responseKey} : $response;
 
     	if (isset($response->total)) {
     		$this->requestFinished = !isset($this->request['startAt']) ? false : $response->total < $this->request['startAt'];
-	    	$this->responseRaw = array_merge($this->responseRaw, $response->{$this->responseKey});
+	    	$this->responseRaw = array_merge($this->responseRaw, $result);
 
 	    	return $this;
     	} 
 
-    	$this->responseRaw = isset($this->responseKey) ? $response->{$this->responseKey} : $response;
+    	$this->responseRaw = $result;
 
 		return $this;
     }
