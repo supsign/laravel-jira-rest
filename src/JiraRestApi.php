@@ -15,44 +15,13 @@ class JiraRestApi
         $endpoint = '',
         $endpoints = array(),
         $login = null,
-        $parameters = array(),
         $password = null,
         $request = array(),
         $response = null,
+        $responseKey = null,
         $responseRaw = array(),
         $step = 100,
         $url = null;
-
-    public function test()
-    {
-    	$this->endpoint = 'search';
-    	// $this->endpoint = 'users/search';
-    	// $this->endpoint = 'user';
-
-    	$this->setRequestData([
-			'maxResults' => 1000,
-			// 'startAt' => 100,
-			'jql' => urlencode('assignee in (5cd3af9d5c99a60dcbae1e1e) order by created DESC')
-    	]);
-
-    	// $this->setRequestData([
-    	// 	'accountId' => '5db5856352817b0c343d6d5c'
-    	// ]);
-
-
-
-    	$this->sendRequests();
-
-    	// var_dump($this->response);
-
-    	// var_dump(count($this->response->issues));
-
-    	// foreach ($this->response->issues AS $issue) {
-    	// 	var_dump($issue);
-    	// }
-
-    	return $this;
-    }
 
 	public function __construct() 
 	{
@@ -74,7 +43,7 @@ class JiraRestApi
 	{
 		$this->response = null;
 		$this->responseRaw = array();
-		$this->parameters = array();
+		$this->responseKey = null;
 
 		return $this;
 	}
@@ -97,10 +66,6 @@ class JiraRestApi
 			curl_setopt($this->ch, CURLOPT_USERPWD, $this->login.':'.$this->password);
 		}
 
-		var_dump(
-			$this->url.$this->endpoint.$this->getRequestString()
-		);
-
 		curl_setopt($this->ch, CURLOPT_URL, $this->url.$this->endpoint.$this->getRequestString());
 		curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($this->ch, CURLOPT_CUSTOMREQUEST, 'GET');
@@ -110,6 +75,40 @@ class JiraRestApi
 
 	public function getEndpoint() {
 		return $this->endpoint;
+	}
+
+	public function getIssue($id)
+	{
+		$this->newCall()->endpoint = 'issue/'.$id;
+		// $this->responseKey = 'fields';
+
+		return $this->getResponse();
+	}
+
+	public function getIssues() 
+	{
+		$this->newCall()->endpoint = 'search';
+		$this->responseKey = 'issues';
+
+    	$this->setRequestData([
+			'maxResults' => 1000,
+			'jql' => urlencode('status in (Backlog, "In Progress", Open, Resolved) ORDER BY created DESC')
+    	]);
+
+		return $this->getResponse();
+	}
+
+	public function getIssuesByAssignee($id)
+	{
+		$this->newCall()->endpoint = 'search';
+		$this->responseKey = 'issues';
+
+    	$this->setRequestData([
+			'maxResults' => 1000,
+			'jql' => urlencode('assignee in ('.$id.') AND status in (Backlog, "In Progress", Open, Resolved) ORDER BY created DESC')
+    	]);
+
+    	return $this->getResponse();
 	}
 
 	protected function getRequestString()
@@ -132,11 +131,18 @@ class JiraRestApi
     	}
 
     	if (!$this->response) {
-    		$this->sendRequest();
+    		$this->sendRequests();
     	}
 
     	return $this->response;
     }
+
+	protected function newCall() {
+		return $this
+			->clearRequestData()
+			->clearResponse();
+	}
+
 
 	protected function sendRequest()
 	{
@@ -152,7 +158,7 @@ class JiraRestApi
     	do {
     		$this->sendRequest();
 
-			if (!isset($this->parameters['startAt'])) {
+			if (!isset($this->request['startAt'])) {
 				$this->request['startAt'] = $this->step;
 			} else {
 				$this->request['startAt'] += $this->step;
@@ -160,6 +166,7 @@ class JiraRestApi
     	} while (!$this->requestFinished);
 
     	$this->response = $this->responseRaw;
+    	unset($this->responseRaw);
 
     	return $this;
     }
@@ -181,40 +188,17 @@ class JiraRestApi
 
     protected function setResponse($response) 
     {
-    	if (!isset($this->request['startAt']))
-    		$this->requestFinished = false;
-    	else
-			$this->requestFinished = $response->total < $this->request['startAt'];
+    	$this->requestFinished = true;
 
-		var_dump(
-			$this->request
-		);
+    	if (isset($response->total)) {
+    		$this->requestFinished = !isset($this->request['startAt']) ? false : $response->total < $this->request['startAt'];
+	    	$this->responseRaw = array_merge($this->responseRaw, $response->{$this->responseKey});
 
-    	// $this->responseRaw = array_merge($this->responseRaw, $response->{$this->endpoint == 'search' ? 'issues' : $this->endpoint});
+	    	return $this;
+    	} 
+
+    	$this->responseRaw = isset($this->responseKey) ? $response->{$this->responseKey} : $response;
 
 		return $this;
-    }
-
-    protected static function toStdClass($collection) 
-    {
-    	$collection = json_decode(json_encode($collection));
-
-    	foreach ($collection AS $entry) {
-    		foreach ($entry AS $key => $value) {
-    			if (is_object($value)) {
-    				$entry->$key = null;
-    			}
-
-    			switch ($key) {
-    				case 'EANNummer':
-    					if (!is_numeric($value) OR $value == 0 OR floor(log10($value) + 1) != 13) {
-    						$entry->$key = null;
-    					}
-    					break;	
-    			}
-    		}
-    	}
-
-    	return $collection;
     }
 }
