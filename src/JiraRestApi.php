@@ -51,7 +51,7 @@ class JiraRestApi
 		return $this;
 	}
 
-	protected function createRequest() 
+	protected function createRequest($method = 'GET') 
 	{
 		$this->ch = curl_init();
 
@@ -62,7 +62,11 @@ class JiraRestApi
 
 		curl_setopt($this->ch, CURLOPT_URL, $this->url.$this->endpoint.$this->getRequestString());
 		curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($this->ch, CURLOPT_CUSTOMREQUEST, 'GET');
+
+		if (strtoupper($method) === 'POST') {
+			curl_setopt($this->ch, CURLOPT_POST, true);
+		} else
+			curl_setopt($this->ch, CURLOPT_CUSTOMREQUEST, $method);
 
 		return $this;
 	}
@@ -202,7 +206,7 @@ class JiraRestApi
     	$result = isset($this->responseKey) ? $response->{$this->responseKey} : $response;
 
     	if (isset($response->total)) {
-    		$this->requestFinished = !isset($this->request['startAt']) ? false : $response->total < $this->request['startAt'];
+    		$this->requestFinished = isset($this->request['startAt']) ? $response->total < $this->request['startAt'] : false;
 	    	$this->responseRaw = array_merge($this->responseRaw, $result);
 
 	    	return $this;
