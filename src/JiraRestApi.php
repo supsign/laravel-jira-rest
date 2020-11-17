@@ -9,7 +9,6 @@ class JiraRestApi
 {
     protected
     	$ch = null,
-        $client = null,
         $endpoint = '',
         $endpoints = array(),
         $login = null,
