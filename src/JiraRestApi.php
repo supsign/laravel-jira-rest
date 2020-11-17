@@ -17,6 +17,8 @@ class JiraRestApi
         $login = null,
         $password = null,
         $request = array(),
+        $requestMaxResults = 1000,
+        $requestIssueStatus = array('Backlog', '"In Progress"', 'Open', 'Resolved'),
         $response = null,
         $responseKey = null,
         $responseRaw = array(),
@@ -91,8 +93,8 @@ class JiraRestApi
 		$this->responseKey = 'issues';
 
     	$this->setRequestData([
-			'maxResults' => 1000,
-			'jql' => urlencode('status in (Backlog, "In Progress", Open, Resolved) ORDER BY created DESC')
+			'maxResults' => $this->requestMaxResults,
+			'jql' => urlencode('status in ('.$this->getRequestIssueStatus().') ORDER BY created DESC')
     	]);
 
 		return $this->getResponse();
@@ -104,11 +106,16 @@ class JiraRestApi
 		$this->responseKey = 'issues';
 
     	$this->setRequestData([
-			'maxResults' => 1000,
-			'jql' => urlencode('assignee in ('.$id.') AND status in (Backlog, "In Progress", Open, Resolved) ORDER BY created DESC')
+			'maxResults' => $this->requestMaxResults,
+			'jql' => urlencode('assignee in ('.$id.') AND status in ('.$this->getRequestIssueStatus().') ORDER BY created DESC')
     	]);
 
     	return $this->getResponse();
+	}
+
+	protected function getRequestIssueStatus()
+	{
+		return implode(',', $this->requestIssueStatus);
 	}
 
 	protected function getRequestString()
@@ -185,6 +192,12 @@ class JiraRestApi
 
     	return $this;
     }
+
+	public function setRequestIssueStatus(array $statis) {
+		$this->requestIssueStatus = $statis;
+
+		return $this;
+	}
 
     protected function setResponse($response) 
     {
