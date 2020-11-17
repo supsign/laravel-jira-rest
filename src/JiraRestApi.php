@@ -63,8 +63,9 @@ class JiraRestApi
 
 		if (strtoupper($method) === 'POST') {
 			curl_setopt($this->ch, CURLOPT_POST, true);
-		} else
+		} else {
 			curl_setopt($this->ch, CURLOPT_CUSTOMREQUEST, $method);
+		}
 
 		return $this;
 	}
