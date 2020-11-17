@@ -87,7 +87,7 @@ class JiraRestApi
 		$this->responseKey = 'issues';
     	$this->setRequestData([
 			'maxResults' => $this->requestMaxResults,
-			'jql' => urlencode('status in ('.$this->getRequestIssueStatus().') ORDER BY duedate DESC')
+			'jql' => urlencode('ORDER BY duedate DESC')
     	]);
 
 		return $this->getResponse();
