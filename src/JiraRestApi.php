@@ -18,7 +18,7 @@ class JiraRestApi
         $password = null,
         $request = array(),
         $requestMaxResults = 1000,
-        $requestIssueStatus = array('Backlog', '"In Progress"', 'Open', 'Resolved'),
+        $requestIssueStatus = array('"In Progress"', 'Open', 'Resolved'),
         $response = null,
         $responseKey = null,
         $responseRaw = array(),
@@ -94,7 +94,7 @@ class JiraRestApi
 
     	$this->setRequestData([
 			'maxResults' => $this->requestMaxResults,
-			'jql' => urlencode('status in ('.$this->getRequestIssueStatus().') ORDER BY created DESC')
+			'jql' => urlencode('status in ('.$this->getRequestIssueStatus().') ORDER BY duedate DESC')
     	]);
 
 		return $this->getResponse();
@@ -107,7 +107,7 @@ class JiraRestApi
 
     	$this->setRequestData([
 			'maxResults' => $this->requestMaxResults,
-			'jql' => urlencode('assignee in ('.$id.') AND status in ('.$this->getRequestIssueStatus().') ORDER BY created DESC')
+			'jql' => urlencode('assignee in ('.$id.') AND status in ('.$this->getRequestIssueStatus().') ORDER BY duedate DESC')
     	]);
 
     	return $this->getResponse();
