@@ -2,7 +2,6 @@
 
 namespace Supsign\LaravelJiraRest;
 
-use Config;
 use Exception;
 
 class JiraRestApi
@@ -202,7 +201,9 @@ class JiraRestApi
     protected function setResponse($response) 
     {
     	$this->requestFinished = true;
-    	$result = isset($this->responseKey) ? $response->{$this->responseKey} : $response;
+    	$result = (!is_null($this->responseKey) && isset($response->{$this->responseKey}))
+    		? $response->{$this->responseKey}
+    		: $response;
 
     	if (isset($response->total)) {
     		$this->requestFinished = isset($this->request['startAt']) ? $response->total < $this->request['startAt'] : false;
