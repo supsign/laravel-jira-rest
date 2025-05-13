@@ -25,5 +25,5 @@
     },
     "require": {
         "supsign/base-api": "^1.0"
-    },
+    }
 }
