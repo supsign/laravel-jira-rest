@@ -2,218 +2,52 @@
 
 namespace Supsign\LaravelJiraRest;
 
-use Exception;
+use BaseApi;
 
-class JiraRestApi
+class JiraRestApi extends BaseApi
 {
-    protected
-    	$ch = null,
-        $endpoint = '',
-        $endpoints = array(),
-        $login = null,
-        $password = null,
-        $request = array(),
-        $requestMaxResults = 1000,
-        $requestIssueStatus = array('"In Progress"', 'Open', 'Resolved'),
-        $response = null,
-        $responseKey = null,
-        $responseRaw = array(),
-        $step = 100,
-        $url = null;
+	protected int $maxResults = 100;
 
 	public function __construct() 
 	{
-		$this->login = env('JIRA_REST_LOGIN');
-		$this->password = env('JIRA_REST_PASSWORD');
-		$this->url = env('JIRA_REST_URL');
+		$this->clientId = env('JIRA_REST_LOGIN');
+		$this->clientSecret = env('JIRA_REST_PASSWORD');
+		$this->baseUrl = env('JIRA_REST_URL');
 
-		return $this;
+		return $this->useBasicAuth();
 	}
 
-	public function clearResponse()
+	public function getIssues($depaginate = true)
 	{
-		$this->response = null;
-		$this->responseRaw = array();
-		$this->responseKey = null;
+		$endpoint = 'search';
+		$requestData = [
+			'maxResults' => $this->maxResults,
+			'jql' => 'ORDER BY updated DESC'
+		];
 
-		return $this;
-	}
-
-	protected function clearRequestData() 
-	{
-		foreach ($this->request AS $key => $value) {
-			unset($this->request[$key]);
+		if ($depaginate) {
+			return $this->depaginate($endpoint, $requestData);
 		}
 
-		return $this;
+		return $this->makeCall($endpoint, $requestData)->issues;
 	}
 
-	protected function createRequest($method = 'GET') 
-	{
-		$this->ch = curl_init();
-
-		if ($this->endpoint) {
-			curl_setopt($this->ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
-			curl_setopt($this->ch, CURLOPT_USERPWD, $this->login.':'.$this->password);
-		}
-
-		curl_setopt($this->ch, CURLOPT_URL, $this->url.$this->endpoint.$this->getRequestString());
-		curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, 1);
-
-		if (strtoupper($method) === 'POST') {
-			curl_setopt($this->ch, CURLOPT_POST, true);
-		} else {
-			curl_setopt($this->ch, CURLOPT_CUSTOMREQUEST, $method);
-		}
-
-		return $this;
-	}
-
-	public function getEndpoint() {
-		return $this->endpoint;
-	}
-
-	public function getIssue($id)
-	{
-		$this->newCall()->endpoint = 'issue/'.$id;
-
-		return $this->getResponse();
-	}
-
-	public function getIssues() 
-	{
-		$this->newCall()->endpoint = 'search';
-		$this->responseKey = 'issues';
-    	$this->setRequestData([
-			'maxResults' => $this->requestMaxResults,
-			'jql' => urlencode('ORDER BY duedate DESC')
-    	]);
-
-		return $this->getResponse();
-	}
-
-	public function getIssuesByAssignee($id)
-	{
-		$this->newCall()->endpoint = 'search';
-		$this->responseKey = 'issues';
-    	$this->setRequestData([
-			'maxResults' => $this->requestMaxResults,
-			'jql' => urlencode('assignee in ('.$id.') AND status in ('.$this->getRequestIssueStatus().') ORDER BY duedate DESC')
-    	]);
-
-    	return $this->getResponse();
-	}
-
-	public function getUser($accountId) {
-		$this
-			->newCall()
-			->setRequestData(['accountId' => $accountId])
-			->endpoint = 'user';
-
-    	return $this->getResponse();
-	}
-
-	protected function getRequestIssueStatus()
-	{
-		return implode(',', $this->requestIssueStatus);
-	}
-
-	protected function getRequestString()
-	{
-		if (!$this->request) {
-			return '';
-		}
-
-		foreach ($this->request AS $key => $value) {
-			$pairs[] = implode('=', [$key, $value]);
-		}
-
-		return '?'.implode('&', $pairs);
-	}
-
-    public function getResponse() 
+    protected function depaginate(string $endpoint, array|object $requestData = [], string $requestMethod = 'get'): array|object
     {
-    	if (!$this->endpoint) {
-    		throw new Exception('no endpoint specified', 1);
-    	}
+        $result = parent::makeCall($endpoint, $requestData, $requestMethod);
+        $items = $result->issues;
+        $requestData['startAt'] = 0;
 
-    	if (!$this->response) {
-    		$this->sendRequests();
-    	}
+        while (count($items) < $result->total) {
+        	$requestData['startAt'] += $this->maxResults;
 
-    	return $this->response;
-    }
+        	$items = array_merge(
+        		$items,
+        		$this->makeCall($endpoint, $requestData, $requestMethod)->issues,
+        	);
 
-	protected function newCall() {
-		return $this
-			->clearRequestData()
-			->clearResponse();
-	}
+        }
 
-
-	protected function sendRequest()
-	{
-		$this->createRequest();
-		$this->setResponse(json_decode(curl_exec($this->ch)));
-		curl_close($this->ch);
-
-		return $this;
-	}
-
-    protected function sendRequests()
-    {
-    	do {
-    		$this->sendRequest();
-
-			if (!isset($this->request['startAt'])) {
-				$this->request['startAt'] = $this->step;
-			} else {
-				$this->request['startAt'] += $this->step;
-			}
-    	} while (!$this->requestFinished);
-
-    	$this->response = $this->responseRaw;
-
-    	return $this;
-    }
-
-	public function setEndpoint($endpoint) {
-		$this->endpoint = $endpoint;
-
-		return $this;
-	}
-
-    protected function setRequestData(array $data)
-    {
-    	$this
-    		->clearRequestData()
-    		->request = $data;
-
-    	return $this;
-    }
-
-	public function setRequestIssueStatus(array $statis) {
-		$this->requestIssueStatus = $statis;
-
-		return $this;
-	}
-
-    protected function setResponse($response) 
-    {
-    	$this->requestFinished = true;
-    	$result = (!is_null($this->responseKey) && isset($response->{$this->responseKey}))
-    		? $response->{$this->responseKey}
-    		: $response;
-
-    	if (isset($response->total)) {
-    		$this->requestFinished = isset($this->request['startAt']) ? $response->total < $this->request['startAt'] : false;
-	    	$this->responseRaw = array_merge($this->responseRaw, $result);
-
-	    	return $this;
-    	} 
-
-    	$this->responseRaw = $result;
-
-		return $this;
+        return $items;
     }
 }
