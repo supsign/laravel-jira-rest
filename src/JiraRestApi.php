@@ -6,7 +6,7 @@ use BaseApi;
 
 class JiraRestApi extends BaseApi
 {
-	protected int $maxResults = 100;
+	protected int $maxResults = 5000;
 
 	public function __construct() 
 	{
@@ -17,12 +17,14 @@ class JiraRestApi extends BaseApi
 		return $this->useBasicAuth();
 	}
 
-	public function getIssues($depaginate = true)
+	public function getIssues($depaginate = true): array
 	{
-		$endpoint = 'search';
+		$endpoint = 'search/jql';
 		$requestData = [
+			'fields' => '*all',
+			'nextPageToken' => null,
 			'maxResults' => $this->maxResults,
-			'jql' => 'ORDER BY updated DESC'
+			'jql' => 'priority >= Lowest ORDER BY updated DESC'
 		];
 
 		if ($depaginate) {
@@ -36,16 +38,15 @@ class JiraRestApi extends BaseApi
     {
         $result = parent::makeCall($endpoint, $requestData, $requestMethod);
         $items = $result->issues;
-        $requestData['startAt'] = 0;
 
-        while (count($items) < $result->total) {
-        	$requestData['startAt'] += $this->maxResults;
+        while (!empty($result->nextPageToken)) {
+        	$requestData['nextPageToken'] = $result->nextPageToken;
+        	$result = $this->makeCall($endpoint, $requestData, $requestMethod);
 
         	$items = array_merge(
         		$items,
-        		$this->makeCall($endpoint, $requestData, $requestMethod)->issues,
+        		$result->issues,
         	);
-
         }
 
         return $items;
